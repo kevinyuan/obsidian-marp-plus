@@ -60,6 +60,14 @@ export function resolveLocalResources(html: string, resolve: ResourceResolver): 
     out = out.replace(CSS_URL_RE, (_m, dq?: string, sq?: string, bare?: string) => {
         const raw = dq ?? sq ?? bare ?? '';
         const rewritten = rewriteOne(raw, resolve);
+        if (sq !== undefined) {
+            // These url()s commonly live inside a double-quoted HTML attribute
+            // (Marp emits `style="...url('...')..."` for its style/data-style
+            // attributes). Re-emitting with double quotes would close that
+            // attribute early and corrupt everything after it in the
+            // serialized HTML, so keep the original single-quoting.
+            return `url('${rewritten.replace(/'/g, "\\'")}')`;
+        }
         // Always emit a quoted URL: a resource path can contain characters that
         // are not valid in a bare CSS url() token.
         return `url("${rewritten.replace(/"/g, '\\"')}")`;

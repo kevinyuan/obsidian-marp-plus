@@ -27,10 +27,9 @@ describe('resolveLocalResources', () => {
             .toBe('<img src="app://vault/sp ace.png?333">');
     });
 
-    it('rewrites CSS url() from Marp background directives', () => {
+    it('rewrites CSS url() from Marp background directives, preserving single-quote style', () => {
         expect(resolveLocalResources('<div style="background-image:url(\'diagrams/cover.svg\')">', resolve))
-            .toBe('<div style="background-image:url(&quot;app://vault/diagrams/cover.svg?111&quot;)">'
-                .replace(/&quot;/g, '"'));
+            .toBe('<div style="background-image:url(\'app://vault/diagrams/cover.svg?111\')">');
     });
 
     it('rewrites bare and double-quoted url() forms', () => {
@@ -60,6 +59,20 @@ describe('resolveLocalResources', () => {
 
     it('leaves an unresolvable url() in place, only normalising the quoting', () => {
         expect(resolveLocalResources('url(missing.png)', resolve)).toBe('url("missing.png")');
+    });
+
+    it('keeps single-quoted url() single-quoted so it does not break out of a double-quoted HTML attribute', () => {
+        // Marp emits e.g. data-style="@import url('https://fonts...')" — an
+        // external, single-quoted url() inside a double-quoted attribute.
+        // Re-emitting with double quotes would close the attribute early and
+        // corrupt the rest of the tag.
+        const html = '<section data-style="@import url(\'https://fonts.googleapis.com/css2?family=Inter\');">';
+        expect(resolveLocalResources(html, resolve)).toBe(html);
+    });
+
+    it('re-quotes a rewritten single-quoted url() with single quotes, not double', () => {
+        expect(resolveLocalResources("<div style=\"background:url('diagrams/cover.svg')\">", resolve))
+            .toBe("<div style=\"background:url('app://vault/diagrams/cover.svg?111')\">");
     });
 
     it('rewrites several references in one document', () => {
